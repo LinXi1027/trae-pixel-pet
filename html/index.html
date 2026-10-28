@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#17171c">
+<title>像素电子宠物 · Pixel Pet</title>
+<style>
+:root{
+  --page:#17171c;
+  --shell:#e8503a; --shell-edge:#7e2417; --shell-dark:#b03a28; --shell-hi:rgba(255,255,255,.28);
+  --plate:#26262c; --plate-edge:#101014;
+  --btn:#34343d; --btn-edge:#101014;
+  --lcd:#c5d392;
+  --text:#f4efe6; --muted:#8d8d99;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--page); color:var(--text);
+  font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:16px; padding:20px; -webkit-tap-highlight-color:transparent; user-select:none;
+}
+.page-title{ font-size:14px; letter-spacing:6px; color:var(--muted); font-weight:600;}
+.device{
+  width:min(340px,94vw);
+  background:var(--shell);
+  border:4px solid var(--shell-edge);
+  border-radius:30px 30px 38px 38px;
+  padding:16px 14px 14px;
+  box-shadow:0 16px 34px rgba(0,0,0,.5), inset 0 3px 0 var(--shell-hi), inset 0 -6px 0 rgba(0,0,0,.18);
+}
+.brand-row{ display:flex; justify-content:space-between; align-items:center; padding:0 4px 8px;}
+.brand{ font-size:10px; letter-spacing:2px; font-weight:700; color:var(--shell-dark); text-shadow:0 1px 0 rgba(255,255,255,.25);}
+.led{ width:8px;height:8px;border-radius:50%; background:#54e06c; box-shadow:0 0 8px rgba(84,224,108,.8); animation:blink 2.2s infinite; display:inline-block;}
+.led.dead{ background:#e8503a; box-shadow:none; animation:none;}
+.led.egg{ background:#f2c14e; box-shadow:0 0 8px rgba(242,193,78,.8);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.plate{ background:var(--plate); border:3px solid var(--plate-edge); border-radius:14px; padding:8px;}
+.screen-wrap{ position:relative; background:#0c0c0f; border-radius:8px; padding:7px;}
+canvas#screen{ display:block; width:100%; background:var(--lcd); border-radius:3px;
+  image-rendering:pixelated; image-rendering:crisp-edges;}
+.screen-wrap::after{
+  content:""; position:absolute; inset:7px; border-radius:3px; pointer-events:none;
+  background:
+    repeating-linear-gradient(0deg, rgba(61,69,38,.10) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(61,69,38,.10) 0 1px, transparent 1px 3px);
+}
+.keys{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-top:12px;}
+.key{
+  padding:11px 4px 8px; border:0; cursor:pointer; border-radius:9px;
+  background:var(--btn); color:var(--text);
+  border-bottom:4px solid var(--btn-edge);
+  font-family:inherit;
+}
+.key:active:not(:disabled){ transform:translateY(2px); border-bottom-width:2px;}
+.key:disabled{ opacity:.35; cursor:default;}
+.key b{ display:block; font-size:14px; font-weight:600;}
+.key i{ display:block; font-style:normal; font-size:8px; letter-spacing:2px; color:var(--muted); margin-top:3px;}
+.key.reset{ display:none; background:#4a3355;}
+.key.reset.show{ display:block; grid-column:1 / -1;}
+.speaker{ display:flex; gap:5px; justify-content:center; margin-top:12px;}
+.speaker span{ width:5px;height:5px;border-radius:50%; background:var(--shell-dark); box-shadow:inset 0 1px 1px rgba(0,0,0,.4);}
+[hidden]{display:none!important}
+.toolbar{ display:flex; gap:10px; width:min(340px,94vw);}
+.tbtn{ flex:1; padding:10px 4px 8px; border:0; cursor:pointer; border-radius:9px;
+  background:var(--btn); color:var(--text); border-bottom:4px solid var(--btn-edge); font-family:inherit;}
+.tbtn:active{ transform:translateY(2px); border-bottom-width:2px;}
+.tbtn b{ display:block; font-size:13px; font-weight:600;}
+.tbtn i{ display:block; font-style:normal; font-size:8px; letter-spacing:2px; color:var(--muted); margin-top:3px;}
+.photo-panel{ width:min(340px,94vw); background:var(--plate); border:3px solid var(--plate-edge);
+  border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:10px;}
+.prow{ display:flex; align-items:flex-start; gap:8px;}
+.prow.disabled{ opacity:.35; pointer-events:none;}
+.plabel{ font-size:10px; letter-spacing:2px; color:var(--muted); padding-top:7px; width:24px; flex:none;}
+.chips{ display:flex; flex-wrap:wrap; gap:6px; flex:1;}
+.chip{ padding:6px 11px; font-size:11px; border-radius:999px; border:1px solid var(--btn-edge);
+  background:var(--btn); color:var(--text); cursor:pointer; font-family:inherit;}
+.chip.on{ background:var(--lcd); color:#3d4526; font-weight:600;}
+.pbtns{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:2px;}
+.pbtn{ padding:10px 4px 8px; border:0; cursor:pointer; border-radius:9px; background:var(--btn);
+  color:var(--text); border-bottom:4px solid var(--btn-edge); font-size:12px; font-family:inherit;}
+.pbtn:active{ transform:translateY(2px); border-bottom-width:2px;}
+.pbtn.exitp{ background:#4a3355;}
+.hint{ font-size:11px; color:var(--muted); text-align:center; line-height:1.8; max-width:360px;}
+</style>
+</head>
+<body>
+<div class="page-title">像素电子宠物</div>
+<div class="device">
+  <div class="brand-row">
+    <span class="brand">PIXEL·PET</span>
+    <span class="led" id="led"></span>
+  </div>
+  <div class="plate">
+    <div class="screen-wrap">
+      <canvas id="screen" width="160" height="144"></canvas>
+    </div>
+    <div class="keys" id="keys">
+      <button class="key" data-act="feed"><b>喂食</b><i>FEED</i></button>
+      <button class="key" data-act="play"><b>玩耍</b><i>PLAY</i></button>
+      <button class="key" data-act="bath"><b>洗澡</b><i>BATH</i></button>
+      <button class="key" data-act="sleep"><b>睡觉</b><i>SLEEP</i></button>
+      <button class="key" data-act="cure"><b>看病</b><i>CURE</i></button>
+      <button class="key" data-act="clean"><b>清理</b><i>CLEAN</i></button>
+      <button class="key reset" id="reset"><b>重新开始</b><i>RESTART</i></button>
+    </div>
+  </div>
+  <div class="speaker"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+</div>
+<div class="toolbar" id="toolbar">
+  <button class="tbtn" id="photoBtn"><b>拍照模式</b><i>PHOTO · P</i></button>
+  <button class="tbtn" id="ffBtn"><b>快进</b><i>按住 HOLD</i></button>
+</div>
+<div class="photo-panel" id="photoPanel" hidden>
+  <div class="prow">
+    <span class="plabel">阶段</span>
+    <div class="chips" id="stageChips">
+      <button class="chip" data-v="egg">蛋</button>
+      <button class="chip" data-v="baby">幼年</button>
+      <button class="chip" data-v="adult">成年</button>
+      <button class="chip" data-v="gone">出走</button>
+    </div>
+  </div>
+  <div class="prow" id="actRow">
+    <span class="plabel">动作</span>
+    <div class="chips" id="actChips">
+      <button class="chip" data-v="none">无</button>
+      <button class="chip" data-v="eat">吃饭</button>
+      <button class="chip" data-v="play">玩耍</button>
+      <button class="chip" data-v="bath">洗澡</button>
+      <button class="chip" data-v="cure">看病</button>
+    </div>
+  </div>
+  <div class="prow" id="stRow">
+    <span class="plabel">状态</span>
+    <div class="chips" id="stChips">
+      <button class="chip" data-v="sleep">睡觉</button>
+      <button class="chip" data-v="sick">生病</button>
+      <button class="chip" data-v="poop">便便</button>
+    </div>
+  </div>
+  <div class="pbtns">
+    <button class="pbtn" id="shotBtn">保存截图</button>
+    <button class="pbtn" id="triBtn">三联画</button>
+    <button class="pbtn exitp" id="exitPhoto">退出</button>
+  </div>
+</div>
+<p class="hint">纯本地运行 · 进度自动存档 · 拍照模式可摆拍并导出 PNG · 按住快进加速成长</p>
+
+<script>
+'use strict';
+/* =====================================================
+   平台层 —— 存档（localStorage 不可用时退化为内存）
+   ===================================================== */
+const store=(()=>{try{const t='__pp_test__';localStorage.setItem(t,'1');localStorage.removeItem(t);return localStorage;}
+catch(e){const m={};return{getItem:k=>(k in m?m[k]:null),setItem:(k,v)=>{m[k]=String(v);},removeItem:k=>{delete m[k];}};}})();
+const SAVE_KEY='pixel-pet-save-v1';
+
+/* =====================================================
+   逻辑层 —— 状态与规则（移植小程序时原样带走）
+   ===================================================== */
+const ACT_MS=1800;
+const EGG_MS=45*1000, BABY_MS=4*60*1000;
+const RATES={hunger:-100/(28*60),mood:-100/(24*60),clean:-100/(45*60),energy:-100/(50*60)}; // 每秒衰减
+
+let state=null;
+
+function freshState(now){
+  return {
+    born:now, hatch:now+EGG_MS, evolve:now+EGG_MS+BABY_MS,
+    stage:'egg',
+    hunger:80, mood:80, clean:92, energy:90,
+    sick:false, sickFor:0, neglectFor:0,
+    poops:[], sleeping:false, alive:true,
+    action:null, actionStart:0, actionUntil:0,
+    lastTick:now, msg:'', msgUntil:0, quipAt:now+5000,
+  };
+}
+function say(t,now){ state.msg=t; state.msgUntil=(now||Date.now())+3500; }
+function setAct(name,now){ state.action=name; state.actionStart=now; state.actionUntil=now+ACT_MS; }
+function addPoop(){
+  const spots=[26,72,118].filter(x=>!state.poops.includes(x));
+  if(spots.length) state.poops.push(spots[(Math.random()*spots.length)|0]);
+}
+
+function tick(now){
+  if(!state.alive){ state.lastTick=now; return; }
+  const dt=(now-state.lastTick)/1000;
+  if(dt<=0) return;
+  state.lastTick=now;
+  const offline=dt>30;                 // 超过 30 秒视为“离开”，衰减放缓且不弄死宠物
+  const span=offline?Math.min(dt,6*3600):dt;
+  const k=offline?0.25:1;
+
+  if(state.sleeping){
+    state.energy=Math.min(100,state.energy+0.55*span);
+    state.hunger=Math.max(0,state.hunger+RATES.hunger*span*0.5*k);
+    state.mood=Math.max(0,state.mood+RATES.mood*span*0.3*k);
+    state.clean=Math.max(0,state.clean+(RATES.clean-state.poops.length*0.05)*span*k);
+  }else{
+    state.hunger=Math.max(0,state.hunger+RATES.hunger*span*k);
+    state.mood=Math.max(0,state.mood+RATES.mood*span*k);
+    state.clean=Math.max(0,state.clean+(RATES.clean-state.poops.length*0.05)*span*k);
+    state.energy=Math.max(0,state.energy+RATES.energy*span*k);
+    if(!offline){
+      if(state.poops.length<3 && Math.random()<1-Math.exp(-dt/160)) addPoop();
+      if(state.energy<=2 && state.stage!=='egg'){ state.sleeping=true; say('困得直接睡着了…',now); }
+    }else if(state.poops.length<1 && Math.random()<0.5) addPoop();
+  }
+
+  // 成长
+  if(state.stage==='egg' && now>=state.hatch){
+    state.stage='baby'; state.hunger=70; state.mood=70;
+    say('咔嚓——孵出来啦！',now); beepSong([880,1175,1568]);
+  }else if(state.stage==='baby' && now>=state.evolve){
+    state.stage='adult'; say('长大成年啦！',now); beepSong([784,988,1319]);
+  }
+
+  // 生病 / 离家出走（离线期间只标记生病，不判死亡）
+  if(state.stage!=='egg'){
+    if(!offline){
+      const critical=state.hunger<=0.5||state.clean<=0.5;
+      if(!state.sick&&critical){
+        state.neglectFor+=span;
+        if(state.neglectFor>30){ state.sick=true; state.sickFor=0; say('生病了！快看病！',now); beepSong([392,330,262]); }
+      }else{
+        state.neglectFor=Math.max(0,state.neglectFor-span*0.5);
+      }
+      if(state.sick){
+        state.sickFor+=span;
+        state.mood=Math.max(0,state.mood-0.1*span);
+        if(state.sickFor>150||((state.hunger<=0.5&&state.mood<=0.5&&state.clean<=0.5)&&state.sickFor>60)) runAway(now);
+      }
+    }else if(state.sick){ state.sickFor=0; }
+  }
+
+  if(offline) return;
+  if(now>state.quipAt && now>state.actionUntil && !state.sleeping && state.stage!=='egg'){
+    state.quipAt=now+6000+Math.random()*6000;
+    say(quip(),now);
+  }
+}
+
+function quip(){
+  if(state.poops.length&&Math.random()<0.4) return '脚边好臭…';
+  const low=[];
+  if(state.hunger<25)low.push('肚子咕咕叫…');
+  if(state.mood<25)low.push('好无聊啊…');
+  if(state.clean<25)low.push('身上黏糊糊…');
+  if(state.energy<25)low.push('眼皮在打架…');
+  if(low.length) return low[(Math.random()*low.length)|0];
+  const happy=['今天也精神满满！','哼着小曲儿~','盯着你看:3','原地转了个圈'];
+  return happy[(Math.random()*happy.length)|0];
+}
+function ambient(s){
+  if(s.sick) return '难受得发抖…';
+  if(s.poops.length) return '脚边有便便…';
+  if(s.hunger<25) return '肚子咕咕叫…';
+  if(s.mood<25) return '好无聊啊…';
+  if(s.clean<25) return '身上黏糊糊…';
+  if(s.energy<25) return '好困…';
+  return '精神满满！';
+}
+
+function runAway(now){
+  state.alive=false;
+  state.msg='它离家出走了…'; state.msgUntil=now+1e12;
+  try{store.removeItem(SAVE_KEY);}catch(e){}
+  beepSong([330,262,220,165]);
+}
+
+function doAct(kind,now){
+  if(!state.alive) return;
+  if(state.stage==='egg'){ say('还在蛋里呢…',now); return; }
+  if(kind!=='sleep'&&state.sleeping){ say('嘘——在睡觉',now); return; }
+  if(now<state.actionUntil) return;
+  switch(kind){
+    case 'feed':
+      state.hunger=Math.min(100,state.hunger+32); state.mood=Math.min(100,state.mood+4);
+      setAct('eat',now); say('吧唧吧唧…',now); beep(660); break;
+    case 'play':
+      if(state.energy<12){ say('太累了，跑不动…',now); break; }
+      state.mood=Math.min(100,state.mood+26); state.energy=Math.max(0,state.energy-12);
+      setAct('play',now); say('好开心！',now); beep(784); break;
+    case 'bath':
+      state.clean=Math.min(100,state.clean+45); setAct('bath',now); say('洗得干干净净',now); beep(587); break;
+    case 'sleep':
+      if(state.sleeping){ state.sleeping=false; say('伸个懒腰，醒来啦！',now); }
+      else { state.sleeping=true; say('晚安…Zzz',now); }
+      beep(440); break;
+    case 'cure':
+      if(state.sick){ state.sick=false; state.sickFor=0; setAct('cure',now); say('打过针，好多了！',now); }
+      else say('现在很健康',now);
+      beep(523); break;
+    case 'clean':
+      if(state.poops.length){
+        state.poops=[]; state.clean=Math.min(100,state.clean+8); state.mood=Math.min(100,state.mood+2);
+        setAct('bath',now); say('清理干净啦',now);
+      }else say('没有便便，很干净',now);
+      break;
+  }
+}
+
+/* =====================================================
+   渲染层 —— 160x144 LCD 像素画布
+   ===================================================== */
+const cv=document.getElementById('screen');
+const ctx=cv.getContext('2d');
+const LCD='#c5d392', DARK='#3d4526';
+
+const SPR={
+  BABY_A:[
+    "....1111....",
+    "..11111111..",
+    ".1111111111.",
+    ".11.1111.11.",
+    ".1111111111.",
+    ".1111111111.",
+    "..11111111..",
+    "..11....11..",
+  ],
+  BABY_B:[
+    "............",
+    "....1111....",
+    "..11111111..",
+    ".1111111111.",
+    ".11.1111.11.",
+    ".1111111111.",
+    ".1111111111.",
+    ".1111111111.",
+    "..11....11..",
+  ],
+  ADULT_A:[
+    "..11........11..",
+    "..111......111..",
+    "..111111111111..",
+    ".11111111111111.",
+    ".11..111111..11.",
+    ".11111111111111.",
+    ".11111111111111.",
+    ".11111111111111.",
+    ".11111111111111.",
+    "..111111111111..",
+    "..111......111..",
+  ],
+  EGG1:[
+    "...1111...",
+    "..111111..",
+    ".11111111.",
+    ".11111111.",
+    ".11.11.11.",
+    ".11111111.",
+    ".11111111.",
+    ".11111111.",
+    ".11111111.",
+    ".11111111.",
+    "..111111..",
+    "...1111...",
+  ],
+  EGG2:[
+    "...1111...",
+    "..111111..",
+    ".11111111.",
+    ".11111111.",
+    ".11.11.11.",
+    ".11111.111",
+    ".11.111.11",
+    ".11111.111",
+    ".11111111.",
+    ".11111111.",
+    "..111111..",
+    "...1111...",
+  ],
+  FOOD:[
+    "..1111..",
+    ".111111.",
+    ".111111.",
+    "..1111.1",
+    "....111.",
+    ".....11.",
+  ],
+  BALL:[
+    ".1111.",
+    "111111",
+    "111111",
+    "111111",
+    "111111",
+    ".1111.",
+  ],
+  POOP:[
+    "...11...",
+    "..1111..",
+    "..1111..",
+    ".111111.",
+    "11111111",
+    ".111111.",
+  ],
+  SKULL:[
+    ".11111.",
+    "1111111",
+    "11.1.11",
+    "1111111",
+    ".11111.",
+    ".11111.",
+    ".1.1.1.",
+  ],
+  HEART:[
+    ".11.11.",
+    "1111111",
+    "1111111",
+    ".11111.",
+    "..111..",
+    "...1...",
+  ],
+  BUB:[
+    ".1111.",
+    "1....1",
+    "1....1",
+    "1....1",
+    "1....1",
+    ".1111.",
+  ],
+  Z:["1111","..1.",".1..","1...","1111"],
+  DOOR:[
+    "1111111111",
+    "1........1",
+    "1........1",
+    "1........1",
+    "1........1",
+    "1........1",
+    "1......1.1",
+    "1........1",
+    "1........1",
+    "1........1",
+    "1........1",
+    "1........1",
+    "1........1",
+    "1111111111",
+  ],
+  MFOOD:[".111.","11111","11111",".111.","..1.."],
+  MHEART:[".1.1.","11111","11111",".111.","..1.."],
+  MDROP:["..1..",".111.","11111","11111",".111."],
+  MBOLT:["...1.","..1..",".111.","..1..",".1..."],
+};
+
+function drawSprite(g,map,x,y){
+  g.fillStyle=DARK;
+  for(let r=0;r<map.length;r++){
+    const row=map[r];
+    for(let c=0;c<row.length;c++) if(row[c]==='1') g.fillRect(x+c,y+r,1,1);
+  }
+}
+function bar(g,x,y,w,h,v){
+  g.fillStyle=DARK; g.fillRect(x,y,w,h);
+  g.fillStyle=LCD; g.fillRect(x+1,y+1,w-2,h-2);
+  if(v>0){ g.fillStyle=DARK; g.fillRect(x+1,y+1,Math.max(0,Math.round((w-2)*v/100)),h-2); }
+}
+function text(g,t,x,y,size,align){
+  g.fillStyle=DARK; g.font='bold '+size+'px monospace';
+  g.textAlign=align||'center'; g.textBaseline='alphabetic';
+  g.fillText(t,x,y);
+}
+
+function drawScene(g,s,now){
+  g.fillStyle=LCD; g.fillRect(0,0,160,144);
+  const frame=Math.floor(now/400)%2;
+
+  // HUD：四项数值条（过低时图标闪烁）
+  const slots=[[5,s.hunger,'MFOOD'],[47,s.mood,'MHEART'],[89,s.clean,'MDROP'],[131,s.energy,'MBOLT']];
+  for(const sl of slots){
+    if(!(sl[1]<20&&frame===0)) drawSprite(g,SPR[sl[2]],sl[0],4);
+    bar(g,sl[0]+8,5,20,5,sl[1]);
+  }
+
+  // 地面
+  g.fillStyle=DARK;
+  for(let x=6;x<154;x+=7) g.fillRect(x,116,2,1);
+
+  // 便便
+  for(const px of s.poops) drawSprite(g,SPR.POOP,px,110);
+
+  if(!s.alive){
+    drawSprite(g,SPR.DOOR,75,34);
+    text(g,'离家出走了…',80,92,10);
+    text(g,'点【重新开始】再养一只',80,106,8);
+  }else if(s.stage==='egg'){
+    const wob=frame?1:-1;
+    const crack=(s.hatch-now)<15000;
+    drawSprite(g,crack?SPR.EGG2:SPR.EGG1,75+wob,102);
+  }else{
+    const map=s.stage==='baby'?(frame?SPR.BABY_B:SPR.BABY_A):SPR.ADULT_A;
+    const bob=s.sleeping?0:(frame?1:0);
+    const px=80-(map[0].length>>1);
+    const py=116-map.length-bob;
+    drawSprite(g,map,px,py);
+
+    const act=now<s.actionUntil?s.action:null;
+    const el=now-s.actionStart;
+
+    if(s.sleeping){
+      const zy=56-(Math.floor(now/500)%4)*4;
+      drawSprite(g,SPR.Z,98,zy);
+      drawSprite(g,SPR.Z,106,zy+10);
+    }
+    if(s.sick) drawSprite(g,SPR.SKULL,94,50);
+    if(act==='eat'){
+      if(el<700) drawSprite(g,SPR.FOOD,50,110);
+      else if(el<1300){
+        g.fillStyle=DARK;
+        for(let r=2;r<6;r++){const row=SPR.FOOD[r];for(let c=0;c<row.length;c++)if(row[c]==='1')g.fillRect(50+c,110+r,1,1);}
+      }
+    }
+    if(act==='play'){
+      const bx=80+Math.round(Math.sin(now/90)*30);
+      const by=100-Math.round(Math.abs(Math.sin(now/140))*28);
+      drawSprite(g,SPR.BALL,bx-3,by);
+      drawSprite(g,SPR.HEART,100,44);
+    }
+    if(act==='bath'){
+      const t=el/200;
+      for(let i=0;i<3;i++){
+        const yy=102-((t+i*1.3)%4)*14;
+        drawSprite(g,SPR.BUB,50+i*24,yy);
+      }
+    }
+    if(act==='cure'){
+      g.fillStyle=DARK;
+      g.fillRect(95,50,2,8); g.fillRect(92,53,8,2);
+    }
+  }
+
+  // 阶段 · 年龄
+  if(s.alive){
+    const age=Math.max(0,Math.floor((now-s.born)/60000));
+    const label=s.stage==='egg'?'蛋':(s.stage==='baby'?'幼年':'成年');
+    text(g,label+'·'+age+'岁',155,26,8,'right');
+  }
+
+  // 消息行
+  let msg=s.msg;
+  if(now>=s.msgUntil){
+    if(!s.alive) msg='它离家出走了…';
+    else if(s.sleeping) msg='Zzz…';
+    else if(s.stage==='egg') msg='孵化倒计时 '+Math.max(0,Math.ceil((s.hatch-now)/1000))+' 秒';
+    else msg=ambient(s);
+  }
+  text(g,msg,80,136,10);
+}
+
+function draw(now){ drawScene(ctx, photoMode?pose:state, now); }
+
+/* =====================================================
+   拍照模式 —— 冻结时间摆拍 · 导出 PNG · 成长三联画
+   drawScene 是 (状态, 时间) 的纯函数：用伪造状态渲染，不碰真存档
+   ===================================================== */
+let photoMode=false, pose=null;
+const photoCfg={stage:'egg',action:'none',sleep:false,sick:false,poop:false};
+
+const toolbar=document.getElementById('toolbar');
+const photoPanel=document.getElementById('photoPanel');
+const stageChips=document.getElementById('stageChips');
+const actChips=document.getElementById('actChips');
+const stChips=document.getElementById('stChips');
+const actRow=document.getElementById('actRow');
+const stRow=document.getElementById('stRow');
+
+function poseMsg(c){
+  if(c.stage==='gone') return '它离家出走了…';
+  if(c.stage==='egg') return '';
+  if(c.action==='eat') return '吧唧吧唧…';
+  if(c.action==='play') return '好开心！';
+  if(c.action==='bath') return '洗得干干净净';
+  if(c.action==='cure') return '打过针，好多了！';
+  if(c.sleep) return 'Zzz…';
+  if(c.sick) return '难受得发抖…';
+  if(c.poop) return '脚边有便便…';
+  return '精神满满！';
+}
+function buildPose(c,now){
+  const s={
+    born:now, hatch:now+12000, evolve:now+9e15,
+    stage:c.stage, hunger:82, mood:90, clean:86, energy:78,
+    sick:false, sickFor:0, neglectFor:0,
+    poops:(c.poop&&c.stage!=='egg'&&c.stage!=='gone')?[26,118]:[],
+    sleeping:c.sleep&&c.stage!=='gone', alive:c.stage!=='gone',
+    action:null, actionStart:now-400, actionUntil:0,
+    lastTick:now, msg:'', msgUntil:now+1e9, quipAt:now+1e9,
+  };
+  if(c.stage==='baby') s.born=now-2*60000;
+  else if(c.stage==='adult') s.born=now-32*60000;
+  else if(c.stage==='gone') s.stage='adult';
+  if(c.sick&&s.alive) s.sick=true;
+  if(c.action&&c.action!=='none'){ s.action=c.action; s.actionUntil=now+1e9; }
+  s.msg=poseMsg(c);
+  if(c.stage==='egg') s.msgUntil=0;      // 蛋走“孵化倒计时”分支
+  return s;
+}
+function refreshPose(now){
+  const c=photoCfg;
+  if(c.stage==='egg') pose.hatch=now+12000;                                // 稳定在快孵化的裂缝形态
+  else if(c.stage!=='gone') pose.born=now-(c.stage==='adult'?32:2)*60000;  // 年龄不漂移
+  if(c.action&&c.action!=='none'){ pose.actionStart=now-400; pose.actionUntil=now+1e9; } // 动画停在饱满帧
+  if(c.stage!=='egg') pose.msgUntil=now+1e9;
+}
+function syncChips(){
+  [...stageChips.children].forEach(c=>c.classList.toggle('on',c.dataset.v===photoCfg.stage));
+  [...actChips.children].forEach(c=>c.classList.toggle('on',c.dataset.v===photoCfg.action));
+  stChips.querySelector('[data-v=sleep]').classList.toggle('on',photoCfg.sleep);
+  stChips.querySelector('[data-v=sick]').classList.toggle('on',photoCfg.sick);
+  stChips.querySelector('[data-v=poop]').classList.toggle('on',photoCfg.poop);
+  const simple=photoCfg.stage==='egg'||photoCfg.stage==='gone';
+  actRow.classList.toggle('disabled',simple);
+  stRow.classList.toggle('disabled',simple);
+}
+function enterPhoto(){
+  photoMode=true;
+  photoCfg.stage=!state.alive?'gone':state.stage;
+  photoCfg.action='none';
+  photoCfg.sleep=state.sleeping;
+  photoCfg.sick=state.sick;
+  photoCfg.poop=state.poops.length>0;
+  syncChips();
+  pose=buildPose(photoCfg,Date.now());
+  toolbar.hidden=true; photoPanel.hidden=false;
+}
+function exitPhoto(){
+  photoMode=false; pose=null;
+  toolbar.hidden=false; photoPanel.hidden=true;
+}
+function togglePhoto(){ photoMode?exitPhoto():enterPhoto(); }
+
+stageChips.addEventListener('click',e=>{
+  const c=e.target.closest('.chip'); if(!c) return;
+  photoCfg.stage=c.dataset.v;
+  if(photoCfg.stage==='egg'||photoCfg.stage==='gone'){
+    photoCfg.action='none'; photoCfg.sleep=photoCfg.sick=photoCfg.poop=false;
+  }
+  syncChips(); pose=buildPose(photoCfg,Date.now());
+});
+actChips.addEventListener('click',e=>{
+  const c=e.target.closest('.chip'); if(!c) return;
+  photoCfg.action=c.dataset.v;
+  if(photoCfg.action!=='none'&&photoCfg.sleep){ photoCfg.sleep=false; syncChips(); }
+  pose=buildPose(photoCfg,Date.now());
+});
+stChips.addEventListener('click',e=>{
+  const c=e.target.closest('.chip'); if(!c) return;
+  const k=c.dataset.v;
+  photoCfg[k]=!photoCfg[k];
+  if(k==='sleep'&&photoCfg.sleep&&photoCfg.action!=='none'){ photoCfg.action='none'; syncChips(); }
+  pose=buildPose(photoCfg,Date.now());
+});
+document.getElementById('photoBtn').addEventListener('click',togglePhoto);
+document.getElementById('exitPhoto').addEventListener('click',exitPhoto);
+
+/* 导出：当前画面 4x 放大 · 成长三联画 2x */
+function downloadCanvas(src,name){
+  const a=document.createElement('a');
+  a.href=src.toDataURL('image/png'); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function exportPNG(){
+  const k=4, off=document.createElement('canvas');
+  off.width=cv.width*k; off.height=cv.height*k;
+  const g=off.getContext('2d'); g.imageSmoothingEnabled=false;
+  g.drawImage(cv,0,0,off.width,off.height);
+  const tag=(photoCfg.action&&photoCfg.action!=='none')?photoCfg.stage+'-'+photoCfg.action:photoCfg.stage;
+  downloadCanvas(off,'pixel-pet-'+tag+'.png');
+}
+function exportTriptych(){
+  const now=Date.now(), W=480, H=166;
+  const off=document.createElement('canvas'); off.width=W; off.height=H;
+  const g=off.getContext('2d');
+  g.fillStyle=LCD; g.fillRect(0,0,W,H);
+  g.fillStyle=DARK; g.font='bold 10px monospace';
+  g.textAlign='center'; g.textBaseline='middle';
+  g.fillText('PIXEL·PET 成长记录 · EGG → BABY → ADULT',W/2,11);
+  for(let i=0;i<3;i++){
+    const t=document.createElement('canvas'); t.width=160; t.height=144;
+    drawScene(t.getContext('2d'),buildPose({stage:['egg','baby','adult'][i],action:'none',sleep:false,sick:false,poop:false},now),now);
+    g.drawImage(t,i*160,22);
+  }
+  g.fillStyle=DARK; g.fillRect(159,22,2,144); g.fillRect(319,22,2,144);
+  const out=document.createElement('canvas'); out.width=W*2; out.height=H*2;
+  const og=out.getContext('2d'); og.imageSmoothingEnabled=false;
+  og.drawImage(off,0,0,out.width,out.height);
+  downloadCanvas(out,'pixel-pet-growth.png');
+}
+document.getElementById('shotBtn').addEventListener('click',exportPNG);
+document.getElementById('triBtn').addEventListener('click',exportTriptych);
+
+/* 快进：按住不放，每帧把全部时间戳整体回拨（约 25 倍速真实流逝） */
+let ffHeld=false, lastNow=Date.now();
+const ffBtn=document.getElementById('ffBtn');
+ffBtn.addEventListener('pointerdown',()=>{ if(!photoMode) ffHeld=true; });
+['pointerup','pointerleave','pointercancel'].forEach(ev=>ffBtn.addEventListener(ev,()=>ffHeld=false));
+window.addEventListener('blur',()=>ffHeld=false);
+
+/* =====================================================
+   输入 + 声音 + 主循环
+   ===================================================== */
+const keyBtns=[...document.querySelectorAll('.key[data-act]')];
+const resetBtn=document.getElementById('reset');
+const led=document.getElementById('led');
+keyBtns.forEach(b=>b.addEventListener('click',()=>{ doAct(b.dataset.act,Date.now()); b.blur(); }));
+resetBtn.addEventListener('click',()=>{
+  try{store.removeItem(SAVE_KEY);}catch(e){}
+  const now=Date.now();
+  state=freshState(now); say('新的一颗蛋出现了！',now);
+  resetBtn.classList.remove('show'); beep(880);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='p'||e.key==='P'){ togglePhoto(); return; }
+  const i='123456'.indexOf(e.key);
+  if(i>=0) keyBtns[i].click();
+});
+
+function refreshKeys(now){
+  const busy=now<state.actionUntil;
+  for(const b of keyBtns){
+    const a=b.dataset.act;
+    b.disabled=photoMode||!state.alive||busy||state.stage==='egg'||(state.sleeping&&a!=='sleep');
+  }
+  resetBtn.classList.toggle('show',!photoMode&&!state.alive);
+  let ledCls='led';
+  if(photoMode){ if(!pose.alive) ledCls+=' dead'; else if(pose.stage==='egg') ledCls+=' egg'; }
+  else if(!state.alive) ledCls+=' dead';
+  else if(state.stage==='egg') ledCls+=' egg';
+  led.className=ledCls;
+}
+
+let AC=null;
+function beep(f){
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==='suspended') AC.resume();
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type='square'; o.frequency.value=f; g.gain.value=0.035;
+    o.connect(g); g.connect(AC.destination);
+    const t=AC.currentTime; o.start(t); o.stop(t+0.09);
+  }catch(e){}
+}
+function beepSong(fs){ fs.forEach((f,i)=>setTimeout(()=>beep(f),i*130)); }
+
+/* 存档：每 3 秒 + 切后台/关页时 */
+function save(){
+  if(!state.alive) return;
+  const s=Object.assign({},state,{action:null,actionStart:0,actionUntil:0});
+  try{ store.setItem(SAVE_KEY,JSON.stringify(s)); }catch(e){}
+}
+setInterval(save,3000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden'){ ffHeld=false; save(); } });
+window.addEventListener('beforeunload',save);
+
+function load(){
+  const now=Date.now();
+  const raw=store.getItem(SAVE_KEY);
+  if(!raw){ state=freshState(now); say('一颗蛋出现了…好好培育它吧',now); return; }
+  try{
+    state=Object.assign(freshState(now),JSON.parse(raw));
+  }catch(e){ state=freshState(now); say('存档读不出来，重新开始吧',now); return; }
+  state.action=null; state.actionStart=0; state.actionUntil=0;
+  const away=(now-state.lastTick)/1000;
+  if(away>90&&state.alive){
+    const m=Math.floor(away/60);
+    say('你离开了'+(m<60?m+'分钟':Math.floor(m/60)+'小时')+'…',now);
+  }
+}
+
+function loop(){
+  const now=Date.now();          // 统一用 Date.now()，与状态里的时间戳同一时间基
+  if(photoMode){
+    refreshPose(now);
+  }else{
+    if(ffHeld&&state.alive){     // 快进：时间戳整体回拨，tick 把这一帧当作 25 倍时长结算
+      const D=Math.min(now-lastNow,1000)*24;
+      state.born-=D; state.hatch-=D; state.evolve-=D; state.lastTick-=D;
+      state.actionStart-=D; state.actionUntil-=D; state.msgUntil-=D; state.quipAt-=D;
+    }
+    tick(now);
+  }
+  draw(now); refreshKeys(now);
+  lastNow=now;
+  requestAnimationFrame(loop);
+}
+load();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
